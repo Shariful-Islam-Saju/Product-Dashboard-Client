@@ -88,7 +88,7 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
 
     // Draw dotted line for each address line
     const addressLineYSpacing = 5;
-    splitAddress.forEach((line, i) => {
+    splitAddress.forEach((line: string | string[], i: number) => {
       doc.text(line, marginX + 15, addressStartY + i * addressLineYSpacing); // indent 15
       drawDotsLine(
         marginX + 15,
