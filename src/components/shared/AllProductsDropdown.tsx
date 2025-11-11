@@ -58,7 +58,7 @@ export default function ProductSelect({
     products.find((p) => p.id === selectedProductId)?.item_name;
 
   return (
-    <div className="w-72 flex flex-col gap-1" ref={containerRef}>
+    <div className="w-72 flex flex-col gap-1 z-50" ref={containerRef}>
       <label className="text-sm font-medium text-muted-foreground">
         Select product
       </label>

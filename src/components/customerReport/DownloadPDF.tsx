@@ -5,7 +5,7 @@ import { FileDown } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { TSales } from "@/types";
-import logoUrl from "../../../public/index.jpeg";
+import logoUrl from "../../../public/index.png";
 
 interface DownloadPDFProps {
   sale: TSales;
@@ -25,38 +25,24 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
       format: [pageWidth, pageHeight],
     });
 
-    /* ---------------- HEADER ---------------- */
+    const img = new Image();
+    img.src = logoUrl.src;
+    await new Promise((res) => (img.onload = res));
 
-    // Prepare address
-    const address = "";
-    const splitAddress = doc.splitTextToSize(
-      address,
-      pageWidth - marginX * 2 - 15
-    ); // 15mm indent
-    const addressLines = splitAddress.length;
+    const saleDate = new Date(sale.sales_date).toLocaleDateString("en-GB");
 
-    // Dynamic header height: logo + info + name + address + padding
-    const headerHeight = 5 + 10 + 10 + addressLines * 5 + 5; // mm
+    const headerHeight = 38;
 
-    // Draw header background
     doc.setFillColor(180, 225, 200);
     doc.rect(0, 0, pageWidth, headerHeight, "F");
 
-    // Logo image
-    const img = new Image();
-    img.src = logoUrl.src;
-    await new Promise((res) => {
-      img.onload = res;
-    });
-    doc.addImage(img, "JPEG", marginX, 5, 20, 10);
+    doc.addImage(img, "png", marginX, 5, 20, 10);
 
-    // Voucher title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.setTextColor(40, 40, 40);
     doc.text("VOUCHER", pageWidth - marginX, 10, { align: "right" });
 
-    // Info lines with dotted underline
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
@@ -66,36 +52,31 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
       let currX = x;
       while (currX < x + width) {
         doc.circle(currX, y, dotWidth / 2, "F");
-        currX += dotWidth * 2; // space between dots
+        currX += dotWidth * 2;
       }
     };
 
-    // Date
+    /* -------- DATE (NO DOTS, FIX SPACING) -------- */
     doc.text("Date:", marginX, 19);
-    drawDotsLine(marginX + 10, 19, 30);
+    doc.text(saleDate, marginX + 9, 19); // tighter spacing
 
-    // Phone
+    /* -------- PHONE (DOTS, FIX SPACING) -------- */
     doc.text("Phone No:", marginX + 50, 19);
-    drawDotsLine(marginX + 70, 19, pageWidth - marginX - 70);
+    drawDotsLine(marginX + 67, 19, pageWidth - marginX - 67);
 
-    // Name
-    doc.text("Name:", marginX, 23.5);
-    drawDotsLine(marginX + 12, 23.5, pageWidth - marginX - 12);
+    /* -------- NAME + ADDRESS SAME LINE, FIX SPACING -------- */
+    const lineY = 25;
 
-    // Address
-    const addressStartY = 28;
-    doc.text("Address:", marginX, addressStartY);
+    doc.text("Name:", marginX, lineY);
+    drawDotsLine(marginX + 10, lineY, 45);
 
-    // Draw dotted line for each address line
-    const addressLineYSpacing = 5;
-    splitAddress.forEach((line: string | string[], i: number) => {
-      doc.text(line, marginX + 15, addressStartY + i * addressLineYSpacing); // indent 15
-      drawDotsLine(
-        marginX + 15,
-        addressStartY + i * addressLineYSpacing + 1,
-        pageWidth - marginX * 2 - 15
-      );
-    });
+    doc.text("Address:", marginX + 60, lineY);
+    drawDotsLine(marginX + 78, lineY, pageWidth - marginX - 78);
+
+    /* -------- SALES CODE (NO DOTS, FIX SPACING) -------- */
+    const salesY = lineY + 6;
+    doc.text("Sales Code:", marginX, salesY);
+    doc.text(sale.sales_code, marginX + 22, salesY);
 
     /* ---------------- TABLE ---------------- */
     const tableStartY = headerHeight + 3;
@@ -103,19 +84,18 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
     const tableHeaders = [
       ["NO.", "ITEM DESCRIPTION", "RATE", "QUANTITY", "AMOUNT"],
     ];
+
     const tableRows: string[][] = [];
 
-    if (sale?.items?.length) {
-      sale.items.forEach((item, index) => {
-        tableRows.push([
-          (index + 1).toString(),
-          item.item_name || "",
-          item.price_per_unit?.toFixed(2) || "",
-          item.sales_qty?.toString() || "",
-          item.total_cost?.toFixed(2) || "",
-        ]);
-      });
-    }
+    sale?.items?.forEach((item, index) => {
+      tableRows.push([
+        (index + 1).toString(),
+        item.item_name || "",
+        item.price_per_unit?.toFixed(2) || "",
+        item.sales_qty?.toString() || "",
+        item.total_cost?.toFixed(2) || "",
+      ]);
+    });
 
     for (let i = (sale?.items?.length || 0) + 1; i <= 12; i++) {
       tableRows.push([i.toString(), "", "", "", ""]);
@@ -153,9 +133,8 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
 
     const finalTableY = (doc as any).lastAutoTable.finalY;
 
-    /* ---------------- TOTAL ROW ---------------- */
     const totalAmount =
-      sale?.items?.reduce((sum, i) => sum + (i.total_cost || 0), 0) || 0;
+      sale.items?.reduce((sum, i) => sum + (i.total_cost || 0), 0) || 0;
 
     const totalLabelX = pageWidth - marginX - 40;
     const totalLabelY = finalTableY;
@@ -179,7 +158,6 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
       { align: "center" }
     );
 
-    /* ---------------- FOOTER ---------------- */
     const footerStartY = pageHeight - 25;
     doc.setFillColor(180, 225, 200);
     doc.rect(0, footerStartY, pageWidth, 25, "F");
@@ -191,14 +169,18 @@ export default function DownloadPDF({ sale }: DownloadPDFProps) {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    const footerText = [
-      "Head Office: Colombia Super Market (6th Floor), 31 Mohakhali C/A, Dhaka-1212",
-      "Phone: 01629-612189 | E-mail: indexayu7@gmail.com",
-      "Web: www.indexlaboratories.com",
-    ];
-    doc.text(footerText, marginX, footerStartY + 12);
 
-    doc.save(`voucher-${sale?.sales_code || "blank"}.pdf`);
+    doc.text(
+      [
+        "Head Office: Colombia Super Market (6th Floor), 31 Mohakhali C/A, Dhaka-1212",
+        "Phone: 01629-612189 | E-mail: indexay7@gmail.com",
+        "Web: www.indexlaboratories.com",
+      ],
+      marginX,
+      footerStartY + 12
+    );
+
+    doc.save(`voucher-${sale.sales_code}.pdf`);
   };
 
   return (
